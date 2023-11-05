@@ -1,0 +1,76 @@
+.homepage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    width: 100vw;
+    /* background-color: blue; */
+}
+
+.search-container {
+    position: absolute;
+    max-width: 500px;
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* This centers the children (heading and input) horizontally */
+    transition: transform 2s ease-in-out, top 2s ease-in-out; /* Smooth transition for movement */
+    /* background-color: red; */
+}
+
+/* Centered by default */
+.search-container.centered {
+    top: 47%;
+    transform: translateY(-47%); /* Centers the container vertically */
+    justify-content: center;
+}
+
+/* After submit, header goes to top */
+.search-container.at-top {
+    top: 5%;
+    transform: translateY(0%); /* Reset any transform applied for centered position */
+    justify-content: flex-start; /* Align to the top */
+}
+
+.search-heading {
+    font-weight: bold;
+    margin-bottom: 20px; /* Spacing between the heading and the input */
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 10px;
+    box-sizing: border-box; /* Includes padding and border in the element's total width and height */
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.suggestions-container {
+    width: 100%;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    background-color: white;
+    border-radius: 4px;
+    overflow: hidden; /* Ensures nested content is contained within rounded corners */
+    z-index: 1000; /* Ensures the dropdown appears above other content */
+}
+
+.suggestion-row {
+    padding: 8px 10px;
+    border-bottom: 1px solid #eee; /* Separates suggestions with a line */
+    background-color: #f9f9f9; /* Light grey background */
+    cursor: pointer; /* Indicates the items are clickable */
+}
+
+.suggestion-row:hover {
+    background-color: #e9e9e9; /* Darker grey on hover */
+}
+
+.company-name {
+    display: block; /* Ensures full width for click area */
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+    .search-input {
+        width: 80%; /* On smaller screens, the input takes more width */
+    }
+}
