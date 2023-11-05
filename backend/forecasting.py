@@ -10,6 +10,16 @@ from statsmodels.tsa.api import VAR
 from sklearn.preprocessing import StandardScaler
 import sys
 
+name_to_ticker = {
+    "Apple": "AAPL",
+    "Microsoft": "MSFT",
+    "Google": "GOOG",
+    "Amazon": "AMZN",
+    "Meta": "META",
+    "Tesla":"TSLA",
+    "Goldman Sachs": "GS"
+}
+
 def get_company_data(ticker, start, end):
     
     income = fq.Ticker(ticker).income(start.year, end.year, quarter = True).transpose()
@@ -63,10 +73,12 @@ def get_data (ticker, start, end, with_macro = True, sentiments = None):
 
     return data.dropna(axis = 0).sort_index()
 
-def forecast (ticker, steps, with_macro = True, sentiments = None):
+def forecast (name, steps, with_macro = True, sentiments = None):
         
     end = datetime.now()
     start = (end - relativedelta(years = 10))
+
+    ticker = name_to_ticker[name]
 
     data = get_data(ticker, start, end, with_macro, sentiments)
 
