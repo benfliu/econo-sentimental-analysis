@@ -9,6 +9,7 @@ from dateutil.relativedelta import relativedelta
 from newspaper import Article
 import feedparser
 import tweepy
+from forecasting import get_company_data, get_data, get_macroeconomic_data, forecast
 
 load_dotenv()
 app = Flask(__name__)
@@ -38,11 +39,12 @@ def get_articles_by_quarter():
 @app.route('/get_tweets', methods=['GET'])
 def get_tweets():
     company_name = request.args.get('company_name', default='', type=str)
-    auth = tweepy.OAuth2BearerHandler("AAAAAAAAAAAAAAAAAAAAALd1qwEAAAAAA%2FPDm8%2F7vZteOLR3QSQTXxGX1FE%3DFZG0CnEgoocsmFHjmgkTUpyyBQmfKEYAY4PdEhccXjJh253gOP")
+    auth = tweepy.OAuth1UserHandler("AAAAAAAAAAAAAAAAAAAAALd1qwEAAAAAA%2FPDm8%2F7vZteOLR3QSQTXxGX1FE%3DFZG0CnEgoocsmFHjmgkTUpyyBQmfKEYAY4PdEhccXjJh253gOP")
     api = tweepy.API(auth)
     tweets = api.search_tweets(q = company_name)
-    
     return jsonify(tweets)
+
+
 
 @app.route('/sentiment_analysis', methods=['POST'])
 def sentiment_analysis():

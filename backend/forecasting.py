@@ -9,7 +9,7 @@ from fredapi import Fred
 from statsmodels.tsa.api import VAR
 from sklearn.preprocessing import StandardScaler
 
-def get_company_data (ticker, start, end):
+def get_company_data(ticker, start, end):
     
     income = fq.Ticker(ticker).income(start.year, end.year, quarter = True).transpose()
     balance = fq.Ticker(ticker).balance(start.year, end.year, quarter = True).transpose()
