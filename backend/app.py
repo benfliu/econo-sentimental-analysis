@@ -49,8 +49,7 @@ def get_tweets_by_quarter():
         #google_news = GNews(language='en', country='US', start_date=interval_start, end_date=interval_end, max_results=10)
         #interval_articles = google_news.get_news(f'"{company_name}" news')
         
-        
-        interval_articles = api.search_tweets(q = )
+        interval_articles = api.search_tweets(q = company_name, since = interval_start, until = interval_end)
         tweets_to_articles.append(interval_articles)
         interval_start += relativedelta(months=3)
         interval_end += relativedelta(months=3)
