@@ -70,11 +70,52 @@ def prediction():
     company_name = request.args.get('company_name', default='', type=str)
     return jsonify(forecast(company_name, 2).to_dict(orient='records'))
 
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
 @app.route('/generate_summary', methods=['POST'])
 def generate_summary():
     company_name = request.args.get('company_name', default='', type=str)
+    # percent_change = request.args.get('percent_change', default=0.0, type=float)
+
+    google_news = GNews(language='en', country='US', max_results = 5)
+    articles = google_news.get_news(f'"{company_name}" news')
+    titles = []
+    for article in articles:
+        titles.append(article['title'])
     
-    
+    macro_text = """The Conference Board forecasts that US economic growth will buckle under mounting headwinds early next year, leading to a very short and shallow recession. This outlook is associated with numerous factors, including, elevated inflation, high interest rates, dissipating pandemic savings, rising consumer debt, lower government spending, and the resumption of mandatory student loan repayments. We forecast that real GDP will grow by 2.2 percent in 2023, and then fall to 0.8 percent in 2024.
+
+                        US consumer spending has held up remarkably well this year despite elevated inflation and higher interest rates. However, this trend cannot hold, in our view. Real disposable personal income growth is flat, pandemic savings are dwindling, and household debt is rising. Additionally, new student loan repayment requirements will begin to impact many consumers starting in October. Thus, we forecast that overall consumer spending growth will slow towards yearend and then contract in Q1 2024 and Q2 2024. As inflation and interest rates abate later in 2024, we expect consumption to begin to expand once more.
+
+                        Meanwhile, following weak growth in Q1 2023, business investment bounced back in Q2 2023 despite interest rate increases. This was largely due to a surge in business spending on equipment (especially computing and transportation equipment) and elevated investment in structures (especially in manufacturing). However, we expect this trend to gradually reverse as US consumption begins to soften and interest rates continue to rise (we believe the Fed will raise rates by 25 basis points once more this year, likely in November). Residential investment, which has already contracted significantly, should start to bottom out later this year and then rise on lower interest rates and strong demand in 2024.
+
+                        Government spending represented one of the few positive growth drivers for 2023 as federal non-defense spending benefited from outlays associated with infrastructure investment legislation passed in 2021 and 2022. However, reductions in discretionary outlays ($1.5 Trillion over 10 years) detailed in the Fiscal Responsibility Act, which averted the debt ceiling crisis, will limit overall government spending and act as a drag on growth later this year and early next.
+
+                        On inflation, we expect to see progress over the coming quarters, but the path will probably be bumpy. Energy prices have been rising in recent weeks and will likely rise further on the back on conflict in the Middle East. However, progress in rental prices, which were previously a significant contributor to inflation, are beginning to cool inflation data. We expect year-over-year inflation readings to remain at about 3 percent at 2023 yearend and that the Fed’s 2 percent target will not be achieved until the end of 2024.
+
+                        Labor market tightness has been remarkably persistent but we expect it to moderate somewhat over the coming quarters. However, relative to previous economic downturns we expect the labor market to hold up well due to persistent shortages in some industries and labor hoarding in others. This should prevent overall economic growth from slipping too deeply into contractionary territory and facilitate a rebound next year.
+
+                        Looking into late 2024, we expect the volatility that dominated the US economy over the pandemic period to diminish. In the second half of 2024, we forecast that overall growth will return to more stable pre-pandemic rates, inflation will drift closer to 2 percent, and the Fed will lower rates to near 4 percent. However, due to an aging labor force we expect tightness in the labor market to remain an ongoing challenge for the foreseeable future."""
+
+    industry_name = openai.Completion.create(
+      model="gpt-3.5-turbo",
+      prompt="What industry is " + company_name + " in? Respond with only the industry name."
+    )
+
+    industry_name = industry_name['choices'][0]['text'].strip()
+    industry_articles = google_news.get_news(f'"Projections for {industry_name} sector" news')
+    industry_text = industry_articles[0]['text']
+
+    summary = openai.Completion.create(
+        model="gpt-4",
+        prompt = "First give me a one sentence summary of the company " + company_name
+                + ". Next give me a one sentence summary of it's financial history. "
+                + "Next, give a one sentence summary about what it has been in the news for, using this list of article titles: " + titles
+                + ". Next give a one sentence summary of the state of the " + industry_name + " industry, based on the text below. "
+                + "Next give a one sentence summary about U.S. economy projections, based on the text below."
+                + "Next give me a one sentence conclusion. Do all of this in 5 sentences. Here are the articles to read:\n\n"
+                + industry_text + "/n/n" + macro_text         
+    )
 
 # openai.api_key = os.getenv("OPENAI_API_KEY")
 
