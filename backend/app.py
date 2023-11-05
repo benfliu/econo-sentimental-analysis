@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from gnews import GNews
 from dotenv import load_dotenv
 import openai
@@ -9,10 +10,11 @@ from dateutil.relativedelta import relativedelta
 from newspaper import Article
 import feedparser
 import tweepy
-from forecasting import get_company_data, get_data, get_macroeconomic_data, forecast
+from forecasting import forecast
 
 load_dotenv()
 app = Flask(__name__)
+CORS(app)
 
 @app.route('/')
 def index():
@@ -36,15 +38,13 @@ def get_articles_by_quarter():
     print(len(quarter_to_articles), file=sys.stderr)
     return jsonify(quarter_to_articles)
 
-@app.route('/get_tweets', methods=['GET'])
-def get_tweets():
-    company_name = request.args.get('company_name', default='', type=str)
-    auth = tweepy.OAuth1UserHandler("AAAAAAAAAAAAAAAAAAAAALd1qwEAAAAAA%2FPDm8%2F7vZteOLR3QSQTXxGX1FE%3DFZG0CnEgoocsmFHjmgkTUpyyBQmfKEYAY4PdEhccXjJh253gOP")
-    api = tweepy.API(auth)
-    tweets = api.search_tweets(q = company_name)
-    return jsonify(tweets)
-
-
+# @app.route('/get_tweets', methods=['GET'])
+# def get_tweets():
+#     company_name = request.args.get('company_name', default='', type=str)
+#     auth = tweepy.AppAuthHandler(consumer_key="UXRusag6lI2AO0ZBLpXUB2uVW", consumer_secret= "xiQiYSnwUOLiOP8jhminCecBEoq2bXPM9349b1R6KouGGZ91r8")
+#     api = tweepy.API(auth)
+#     tweets = api.search_tweets(q = company_name)
+#     return jsonify(tweets)
 
 @app.route('/sentiment_analysis', methods=['POST'])
 def sentiment_analysis():
@@ -62,8 +62,19 @@ def sentiment_analysis():
             article.config.request_timeout = 10
             article.download()
             article.parse()
-            print(article.text, file=sys.stderr)
+            
     return quarter_to_articles
+
+@app.route('/prediction', methods=['POST'])
+def prediction():
+    company_name = request.args.get('company_name', default='', type=str)
+    return jsonify(forecast(company_name, 2).to_dict(orient='records'))
+
+@app.route('/generate_summary', methods=['POST'])
+def generate_summary():
+    company_name = request.args.get('company_name', default='', type=str)
+    
+    
 
 # openai.api_key = os.getenv("OPENAI_API_KEY")
 

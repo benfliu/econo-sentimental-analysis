@@ -50,22 +50,28 @@ def get_data (ticker, start, end):
     company = get_company_data(ticker, start, end)
     macro = get_macroeconomic_data(start, end)
     merged = pd.merge(company, macro, left_index = True, right_index = True)
-    
     return merged.dropna(axis = 0).sort_index()
 
-def forecast (ticker, steps):
+def forecast (ticker, steps, with_macro = True):
         
     end = datetime.now()
     start = (end - relativedelta(years = 10))
     
-    data = get_data(ticker, start, end)
+    if with_macro:
+        data = get_data(ticker, start, end)
+        # Add sentiment data
+    else:
+        data = get_company_data(ticker, start, end).dropna(axis = 0).sort_index()
     
     scaler = StandardScaler()
     data_arr = scaler.fit_transform(data)
 
-    model = VAR(data_arr)
-    results = model.fit()
-    results.summary()
+    try:
+        model = VAR(data_arr)
+        results = model.fit()
+        results.summary()
+    except Exception as e:
+        print("There was an issue with the VAR model:", e)
 
     out = scaler.inverse_transform(results.forecast(data_arr, steps))
     return pd.DataFrame(out, columns = data.columns)
