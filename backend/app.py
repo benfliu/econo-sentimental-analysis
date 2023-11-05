@@ -70,6 +70,7 @@ def sentiment_analysis():
             # for entry in feed.entries:
             #     url = entry.link
             article = Article(article_json['url'])
+            article.config.request_timeout = 10
             article.download()
             article.parse()
             print(article.text, file=sys.stderr)
