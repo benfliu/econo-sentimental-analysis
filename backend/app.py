@@ -35,27 +35,14 @@ def get_articles_by_quarter():
     print(len(quarter_to_articles), file=sys.stderr)
     return jsonify(quarter_to_articles)
 
-@app.route('/get_tweets_by_quarter', methods=['GET'])
-def get_tweets_by_quarter():
+@app.route('/get_tweets', methods=['GET'])
+def get_tweets():
     company_name = request.args.get('company_name', default='', type=str)
-    today = datetime.now()
-    interval_start = today - relativedelta(years=1, days=1)
-    interval_end = interval_start + relativedelta(months=3)
-    tweets_to_articles = []
     auth = tweepy.OAuth2BearerHandler("AAAAAAAAAAAAAAAAAAAAALd1qwEAAAAAA%2FPDm8%2F7vZteOLR3QSQTXxGX1FE%3DFZG0CnEgoocsmFHjmgkTUpyyBQmfKEYAY4PdEhccXjJh253gOP")
     api = tweepy.API(auth)
-
-    while interval_end < today:
-        #google_news = GNews(language='en', country='US', start_date=interval_start, end_date=interval_end, max_results=10)
-        #interval_articles = google_news.get_news(f'"{company_name}" news')
-        
-        interval_articles = api.search_tweets(q = company_name, since = interval_start, until = interval_end)
-        tweets_to_articles.append(interval_articles)
-        interval_start += relativedelta(months=3)
-        interval_end += relativedelta(months=3)
+    tweets = api.search_tweets(q = company_name)
     
-    print(len(tweets_to_articles), file=sys.stderr)
-    return jsonify(tweets_to_articles)
+    return jsonify(tweets)
 
 @app.route('/sentiment_analysis', methods=['POST'])
 def sentiment_analysis():
