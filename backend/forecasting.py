@@ -83,6 +83,8 @@ def forecast (name, steps, with_macro = True, sentiments = None):
 
     data = get_data(ticker, start, end, with_macro, sentiments)
 
+    print(data)
+
     scaler = StandardScaler()
     data_arr = scaler.fit_transform(data)
 
