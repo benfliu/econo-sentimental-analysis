@@ -32,14 +32,14 @@ def get_articles_by_quarter():
     quarter_to_articles = []
 
     while interval_end < today:
-        google_news = GNews(language='en', country='US', start_date=interval_start, end_date=interval_end, max_results=5)
+        google_news = GNews(language='en', country='US', start_date=interval_start, end_date=interval_end, max_results=1)
         interval_articles = google_news.get_news(f'"{company_name}" news')
         quarter_to_articles.append(interval_articles)
         interval_start += relativedelta(months=3)
         interval_end += relativedelta(months=3)
     
     print(len(quarter_to_articles), file=sys.stderr)
-    return jsonify(quarter_to_articles)
+    return jsonify(quarter_to_articles)                                                                                                                                         
 
 # @app.route('/get_tweets', methods=['GET'])
 # def get_tweets():
@@ -51,8 +51,11 @@ def get_articles_by_quarter():
 
 @app.route('/sentiment_analysis', methods=['POST'])
 def sentiment_analysis():
+    print('BEFORE REQUEST TO JSON',file=sys.stderr);
     quarter_to_articles = request.json.get('quarter_to_articles')
+    print('AFTER REQUEST TO JSON',file=sys.stderr);
     pipe = pipeline("text-classification", model="ProsusAI/finbert", return_all_scores = True)
+    print('AFTER PIPELINE',file=sys.stderr);
 
     sentiments = pd.DataFrame(columns = ["Date", "Positive", "Negative", "Neutral"])
 
@@ -64,6 +67,7 @@ def sentiment_analysis():
             try:
                 article.download()
                 article.parse()
+                print(article.text, files=sys.stderr)
                 output = pipe(article.text[:512])
                 sentiments.loc[len(sentiments)] = [article_json["published date"]] + output_to_sentiment(output)
             except newspaper.article.ArticleException:
@@ -82,6 +86,41 @@ def prediction():
     
     return jsonify({"data": data.to_dict(), "predictions": predictions.to_dict()})
 
+@app.route('/get_data', methods=['POST'])
+def get_data():
+    metric = request.json.get('metric')
+    all_data = request.json.get('all_data')
+    print('TEST!!!!', files=sys.ifidf)
+    metric_data = all_data.get('data').get(metric)
+    quarters = []
+    values = []
+    for quarter in metric_data:
+        quarters.append(quarter)
+        values.append(metric_data.get(quarter))
+    clean_data = {
+        "x_vals": quarters,
+        "y_label": f"{metric} (Actual)",
+        "vals": values
+    }
+    return jsonify(clean_data)
+
+@app.route('/get_predictions', methods=['POST'])
+def get_predictions():
+    metric = request.json.get('metric')
+    all_data = request.json.get('all_data')
+    metric_predictions = all_data.get('predictions').get(metric)
+    quarters = []
+    values = []
+    for quarter in metric_predictions:
+        quarters.append(quarter)
+        values.append(metric_predictions.get(quarter))
+    clean_predictions = {
+        "x_vals": quarters,
+        "y_label": f"{metric} (Predicted)",
+        "vals": values
+    }
+    return jsonify(clean_predictions)
+
 @app.route('/evaluation', methods=['POST'])
 def evaluation():
     company_name = request.json.get('company_name')
@@ -95,7 +134,7 @@ def generate_summary():
     company_name = request.args.get('company_name', default='', type=str)
     # percent_change = request.args.get('percent_change', default=0.0, type=float)
 
-    google_news = GNews(language='en', country='US', max_results = 5)
+    google_news = GNews(language='en', country='US', max_results = 1)
     articles = google_news.get_news(f'"{company_name}" news')
     titles = []
     for article in articles:
@@ -135,7 +174,12 @@ def generate_summary():
                 + industry_text + "/n/n" + macro_text         
     )
 
-    
+@app.route('/generate_model_sum', methods=['POST'])
+def generate_model_sum():
+    company_name = request.args.get('company_name', default='', type=str)
+    stock_change
+
+
 # openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # @app.route('/filter_articles', methods=['POST'])
