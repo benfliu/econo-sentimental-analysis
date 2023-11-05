@@ -78,8 +78,9 @@ def output_to_sentiment (output):
 def prediction():
     company_name = request.args.get('company_name', default='', type=str)
     sentiments = pd.DataFrame.from_dict(request.json.get('sentiments'), orient='columns')
+    data, predictions = forecast(company_name, 2, sentiments = sentiments)
     
-    return [jsonify(df.to_dict(orient='records')) for df in forecast(company_name, 2, sentiments = sentiments)]
+    return jsonify({"data": data.to_dict(), "predictions": predictions.to_dict()})
 
 @app.route('/evaluation', methods=['POST'])
 def evaluation():

@@ -82,6 +82,7 @@ def forecast (name, steps, with_macro = True, sentiments = None):
     ticker = name_to_ticker[name]
 
     data = get_data(ticker, start, end, with_macro, sentiments)
+    data.index = data.index.astype(str)
 
     scaler = StandardScaler()
     data_arr = scaler.fit_transform(data)
@@ -94,7 +95,7 @@ def forecast (name, steps, with_macro = True, sentiments = None):
         print("There was an issue with the VAR model:", e)
 
     out = scaler.inverse_transform(results.forecast(data_arr, steps))
-    return [data, pd.DataFrame(out, columns = data.columns)]
+    return (data, pd.DataFrame(out, columns = data.columns))
 
 def evaluate (name, steps, with_macro = True, sentiments = None):
         
