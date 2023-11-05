@@ -38,23 +38,18 @@ def get_articles_by_quarter():
         interval_start += relativedelta(months=3)
         interval_end += relativedelta(months=3)
     
-    print(len(quarter_to_articles), file=sys.stderr)
-    return jsonify(quarter_to_articles)                                                                                                                                         
+    sentiments = sentiment_analysis(quarter_to_articles)
+    all_data = prediction(company_name, sentiments)
+    clean_data = get_data("Close", all_data)
+    clean_predictions = get_predictions("Close", all_data)
+    combined_data = {
+        "data": clean_data,
+        "predictions": clean_predictions
+    }
+    return jsonify(combined_data)                                                                                                                                         
 
-# @app.route('/get_tweets', methods=['GET'])
-# def get_tweets():
-#     company_name = request.args.get('company_name', default='', type=str)
-#     auth = tweepy.AppAuthHandler(consumer_key="UXRusag6lI2AO0ZBLpXUB2uVW", consumer_secret= "xiQiYSnwUOLiOP8jhminCecBEoq2bXPM9349b1R6KouGGZ91r8")
-#     api = tweepy.API(auth)
-#     tweets = api.search_tweets(q = company_name)
-#     return jsonify(tweets)
-
-@app.route('/sentiment_analysis', methods=['POST'])
-def sentiment_analysis():
-    print('BEFORE REQUEST TO JSON',file=sys.stderr);
-    quarter_to_articles = request.json.get('quarter_to_articles')
-    print('AFTER REQUEST TO JSON',file=sys.stderr);
-    pipe = pipeline("text-classification", model="ProsusAI/finbert", top_k=None)
+def sentiment_analysis(quarter_to_articles):
+    pipe = pipeline("text-classification", model="ProsusAI/finbert", return_all_scores = True)
     print('AFTER PIPELINE',file=sys.stderr);
 
     sentiments = pd.DataFrame(columns = ["Date", "Positive", "Negative", "Neutral"])
@@ -67,30 +62,24 @@ def sentiment_analysis():
             try:
                 article.download()
                 article.parse()
-                print(article.text, files=sys.stderr)
+                print(article.text, file=sys.stderr)
                 output = pipe(article.text[:512])
                 sentiments.loc[len(sentiments)] = [article_json["published date"]] + output_to_sentiment(output)
             except newspaper.article.ArticleException:
                 continue
         
-    return jsonify(sentiments.to_dict())
+    return sentiments
 
 def output_to_sentiment (output):
     return [score['score'] for score in output[0] if score['label'] == 'positive'] + [score['score'] for score in output[0] if score['label'] == 'negative'] + [score['score'] for score in output[0] if score['label'] == 'neutral']
 
-@app.route('/prediction', methods=['POST'])
-def prediction():
-    company_name = request.json.get('company_name')
-    sentiments = pd.DataFrame.from_dict(request.json.get('sentiments'), orient='columns')
+def prediction(company_name, sentiments):
     data, predictions = forecast(company_name, 2, sentiments = sentiments)
     
-    return jsonify({"data": data.to_dict(), "predictions": predictions.to_dict()})
+    return {"data": data.to_dict(), "predictions": predictions.to_dict()}
 
-@app.route('/get_data', methods=['POST'])
-def get_data():
-    metric = request.json.get('metric')
-    all_data = request.json.get('all_data')
-    print('TEST!!!!', fila=sys.stderr)
+def get_data(metric, all_data):
+    print('TEST!!!!', file=sys.stderr)
     metric_data = all_data.get('data').get(metric)
     quarters = []
     values = []
@@ -102,12 +91,9 @@ def get_data():
         "y_label": f"{metric} (Actual)",
         "vals": values
     }
-    return jsonify(clean_data)
+    return clean_data
 
-@app.route('/get_predictions', methods=['POST'])
-def get_predictions():
-    metric = request.json.get('metric')
-    all_data = request.json.get('all_data')
+def get_predictions(metric, all_data):
     metric_predictions = all_data.get('predictions').get(metric)
     quarters = []
     values = []
@@ -119,27 +105,25 @@ def get_predictions():
         "y_label": f"{metric} (Predicted)",
         "vals": values
     }
-    return jsonify(clean_predictions)
+    return clean_predictions
 
-@app.route('/evaluation', methods=['POST'])
-def evaluation():
-    company_name = request.json.get('company_name')
-    sentiments = pd.DataFrame.from_dict(request.json.get('sentiments'), orient='columns')
+# def evaluation(company_name):
+#     sentiments = pd.DataFrame.from_dict(request.json.get('sentiments'), orient='columns')
     
-    return jsonify(evaluate(company_name, 5, sentiments = sentiments).to_dict(orient='records'))
-openai.api_key = os.getenv("OPENAI_API_KEY")
+#     return jsonify(evaluate(company_name, 5, sentiments = sentiments).to_dict(orient='records'))
 
+# openai.api_key = os.getenv("OPENAI_API_KEY")
 @app.route('/generate_summary', methods=['POST'])
 def generate_summary():
-    company_name = request.args.get('company_name', default='', type=str)
-    # percent_change = request.args.get('percent_change', default=0.0, type=float)
-
-    google_news = GNews(language='en', country='US', max_results = 1)
+    company_name = request.json.get('company_name')
+    google_news = GNews(language='en', country='US', max_results = 5)
     articles = google_news.get_news(f'"{company_name}" news')
     titles = []
     for article in articles:
         titles.append(article['title'])
-    
+
+    openai.api_key = "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"
+
     macro_text = """The Conference Board forecasts that US economic growth will buckle under mounting headwinds early next year, leading to a very short and shallow recession. This outlook is associated with numerous factors, including, elevated inflation, high interest rates, dissipating pandemic savings, rising consumer debt, lower government spending, and the resumption of mandatory student loan repayments. We forecast that real GDP will grow by 2.2 percent in 2023, and then fall to 0.8 percent in 2024.
 
                         US consumer spending has held up remarkably well this year despite elevated inflation and higher interest rates. However, this trend cannot hold, in our view. Real disposable personal income growth is flat, pandemic savings are dwindling, and household debt is rising. Additionally, new student loan repayment requirements will begin to impact many consumers starting in October. Thus, we forecast that overall consumer spending growth will slow towards yearend and then contract in Q1 2024 and Q2 2024. As inflation and interest rates abate later in 2024, we expect consumption to begin to expand once more.
@@ -154,25 +138,82 @@ def generate_summary():
 
                         Looking into late 2024, we expect the volatility that dominated the US economy over the pandemic period to diminish. In the second half of 2024, we forecast that overall growth will return to more stable pre-pandemic rates, inflation will drift closer to 2 percent, and the Fed will lower rates to near 4 percent. However, due to an aging labor force we expect tightness in the labor market to remain an ongoing challenge for the foreseeable future."""
 
+
     industry_name = openai.Completion.create(
-      model="gpt-3.5-turbo",
-      prompt="What industry is " + company_name + " in? Respond with only the industry name."
+      engine="text-davinci-003",
+      prompt="What industry is " + company_name + " in? Respond with only the industry name.",
+      max_tokens = 50
     )
 
-    industry_name = industry_name['choices'][0]['text'].strip()
-    industry_articles = google_news.get_news(f'"Projections for {industry_name} sector" news')
-    industry_text = industry_articles[0]['text']
+
+    industry_name = industry_name.choices[0].text.strip()
+    google_news1 = GNews(language='en', country='US', max_results=5)
+    industry_articles = google_news1.get_news("Projections for " + industry_name + " sector")
+    industry_url = industry_articles[0]['url']
+    article = Article(industry_url)
+    article.config.request_timeout = 10
+
+    industry_text = ""
+    article.download()
+    article.parse()
+    
+    output = article.text[:512]
+    industry_text = "".join([str(i) for i in output])
 
     summary = openai.Completion.create(
-        model="gpt-4",
+        engine="text-davinci-003",
         prompt = "First give me a one sentence summary of the company " + company_name
-                + ". Next give me a one sentence summary of it's financial history. "
-                + "Next, give a one sentence summary about what it has been in the news for, using this list of article titles: " + titles
+                + ". Next give me a one sentence summary of it's financial history, based on what you already know. "
+                + "Next, give a one sentence summary about two things it has been in the news for, using this list of article titles: " + str(titles)
                 + ". Next give a one sentence summary of the state of the " + industry_name + " industry, based on the text below. "
                 + "Next give a one sentence summary about U.S. economy projections, based on the text below."
-                + "Next give me a one sentence conclusion. Do all of this in 5 sentences. Here are the articles to read:\n\n"
-                + industry_text + "/n/n" + macro_text         
+                + "Next give me a one sentence conclusion about " + company_name + "'s financial outlook. Do all of this in a less-than-7 sentence paragraph, . Here are the articles to read:\n\n"
+                + industry_text + "/n/n" + macro_text,
+        max_tokens=500
     )
+    summary = summary.choices[0].text.strip()
+    return summary
+
+# @app.route('/generate_model_sum', methods=['POST'])
+# def generate_model_sum():
+#     company_name = request.args.get('company_name', default='', type=str)
+#     stock_change
+
+
+# openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# @app.route('/filter_articles', methods=['POST'])
+# def filter_articles():
+#     # Extract the articles from the incoming JSON
+#     company_name = request.json.get('company_name')
+#     articles = request.json.get('articles', [])
+#     filtered_articles = []
+#     bad_articles = []
+
+#     for article in articles:
+#         # Concatenate the relevant information from the article
+#         text_to_evaluate = f"Title: {article['title']}\nDescription: {article['description']}\nPublisher: {article['publisher']}"
+        
+#         # Here, you could call the GPT API to evaluate if the article is relevant or not
+#         response = openai.Completion.create(
+#           engine="text-davinci-003",
+#           prompt=f"Given the following article title, description, and publisher information, is the following article relevant for {company_name}'s sentiment analysis? Provide 'Yes' or 'No', and nothing else.\n{text_to_evaluate}",
+#           max_tokens=50
+#         )
+        
+#         # Parse the response to decide if you should filter this article
+#         answer = response.choices[0].text.strip()
+#         if 'yes' in answer.lower():
+#             filtered_articles.append(article)
+#         else:
+#             bad_articles.append(article)
+
+#     # Return the filtered list of articles
+#     print('FILTERED ARTICLES:')
+#     print(filtered_articles, file=sys.stderr)
+#     print('\nBAD ARTICLES:')
+#     print(bad_articles, file=sys.stderr)
+#     return jsonify(filtered_articles)
 
 if __name__ == '__main__':
     app.run(port=8000, debug=True)
