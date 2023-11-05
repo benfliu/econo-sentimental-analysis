@@ -7,10 +7,13 @@ import os
 import sys
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+import newspaper
 from newspaper import Article
 import feedparser
 import tweepy
-from forecasting import forecast
+from forecasting import get_company_data, get_data, get_macroeconomic_data, forecast
+from transformers import pipeline
+import pandas as pd
 
 load_dotenv()
 app = Flask(__name__)
@@ -24,12 +27,12 @@ def index():
 def get_articles_by_quarter():
     company_name = request.args.get('company_name', default='', type=str)
     today = datetime.now()
-    interval_start = today - relativedelta(years=1, days=1)
+    interval_start = today - relativedelta(years=10, days=1)
     interval_end = interval_start + relativedelta(months=3)
     quarter_to_articles = []
 
     while interval_end < today:
-        google_news = GNews(language='en', country='US', start_date=interval_start, end_date=interval_end, max_results=10)
+        google_news = GNews(language='en', country='US', start_date=interval_start, end_date=interval_end, max_results=5)
         interval_articles = google_news.get_news(f'"{company_name}" news')
         quarter_to_articles.append(interval_articles)
         interval_start += relativedelta(months=3)
@@ -49,33 +52,40 @@ def get_articles_by_quarter():
 @app.route('/sentiment_analysis', methods=['POST'])
 def sentiment_analysis():
     quarter_to_articles = request.json.get('quarter_to_articles')
+    pipe = pipeline("text-classification", model="ProsusAI/finbert", return_all_scores = True)
+
+    sentiments = pd.DataFrame(columns = ["Date", "Positive", "Negative", "Neutral"])
+
     # Extract text from each quarter
     for articles_json in quarter_to_articles:
         for article_json in articles_json:
-            # print("HELLO", file=sys.stderr)
-            # print(f"URL: {article_json['url']}", file=sys.stderr)
-            # feed = feedparser.parse(article_json['url'])
-            # print(f"Feed: {feed}", file=sys.stderr)
-            # for entry in feed.entries:
-            #     url = entry.link
             article = Article(article_json['url'])
             article.config.request_timeout = 10
-            article.download()
-            article.parse()
-            
-    return quarter_to_articles
+            try:
+                article.download()
+                article.parse()
+                output = pipe(article.text[:512])
+                sentiments.loc[len(sentiments)] = [article_json["published date"]] + output_to_sentiment(output)
+            except newspaper.article.ArticleException:
+                continue
+        
+    return jsonify(sentiments.to_dict())
+
+def output_to_sentiment (output):
+    return [score['score'] for score in output[0] if score['label'] == 'positive'] + [score['score'] for score in output[0] if score['label'] == 'negative'] + [score['score'] for score in output[0] if score['label'] == 'neutral']
 
 @app.route('/prediction', methods=['POST'])
 def prediction():
     company_name = request.args.get('company_name', default='', type=str)
-    return jsonify(forecast(company_name, 2).to_dict(orient='records'))
+    sentiments = pd.DataFrame.from_dict(request.json.get('sentiments'), orient='columns')
+    
+    return jsonify(forecast(company_name, 2, sentiments = sentiments).to_dict(orient='records'))
 
 @app.route('/generate_summary', methods=['POST'])
 def generate_summary():
     company_name = request.args.get('company_name', default='', type=str)
     
     
-
 # openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # @app.route('/filter_articles', methods=['POST'])
