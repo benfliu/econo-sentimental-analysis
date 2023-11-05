@@ -54,7 +54,7 @@ def sentiment_analysis():
     print('BEFORE REQUEST TO JSON',file=sys.stderr);
     quarter_to_articles = request.json.get('quarter_to_articles')
     print('AFTER REQUEST TO JSON',file=sys.stderr);
-    pipe = pipeline("text-classification", model="ProsusAI/finbert", return_all_scores = True)
+    pipe = pipeline("text-classification", model="ProsusAI/finbert", top_k=None)
     print('AFTER PIPELINE',file=sys.stderr);
 
     sentiments = pd.DataFrame(columns = ["Date", "Positive", "Negative", "Neutral"])
@@ -90,7 +90,7 @@ def prediction():
 def get_data():
     metric = request.json.get('metric')
     all_data = request.json.get('all_data')
-    print('TEST!!!!', files=sys.ifidf)
+    print('TEST!!!!', fila=sys.stderr)
     metric_data = all_data.get('data').get(metric)
     quarters = []
     values = []
@@ -173,47 +173,6 @@ def generate_summary():
                 + "Next give me a one sentence conclusion. Do all of this in 5 sentences. Here are the articles to read:\n\n"
                 + industry_text + "/n/n" + macro_text         
     )
-
-@app.route('/generate_model_sum', methods=['POST'])
-def generate_model_sum():
-    company_name = request.args.get('company_name', default='', type=str)
-    stock_change
-
-
-# openai.api_key = os.getenv("OPENAI_API_KEY")
-
-# @app.route('/filter_articles', methods=['POST'])
-# def filter_articles():
-#     # Extract the articles from the incoming JSON
-#     company_name = request.json.get('company_name')
-#     articles = request.json.get('articles', [])
-#     filtered_articles = []
-#     bad_articles = []
-
-#     for article in articles:
-#         # Concatenate the relevant information from the article
-#         text_to_evaluate = f"Title: {article['title']}\nDescription: {article['description']}\nPublisher: {article['publisher']}"
-        
-#         # Here, you could call the GPT API to evaluate if the article is relevant or not
-#         response = openai.Completion.create(
-#           engine="text-davinci-003",
-#           prompt=f"Given the following article title, description, and publisher information, is the following article relevant for {company_name}'s sentiment analysis? Provide 'Yes' or 'No', and nothing else.\n{text_to_evaluate}",
-#           max_tokens=50
-#         )
-        
-#         # Parse the response to decide if you should filter this article
-#         answer = response.choices[0].text.strip()
-#         if 'yes' in answer.lower():
-#             filtered_articles.append(article)
-#         else:
-#             bad_articles.append(article)
-
-#     # Return the filtered list of articles
-#     print('FILTERED ARTICLES:')
-#     print(filtered_articles, file=sys.stderr)
-#     print('\nBAD ARTICLES:')
-#     print(bad_articles, file=sys.stderr)
-#     return jsonify(filtered_articles)
 
 if __name__ == '__main__':
     app.run(port=8000, debug=True)
