@@ -7,10 +7,13 @@ import os
 import sys
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+import newspaper
 from newspaper import Article
 import feedparser
 import tweepy
-from forecasting import forecast
+from forecasting import get_company_data, get_data, get_macroeconomic_data, forecast
+from transformers import pipeline
+import pandas as pd
 
 load_dotenv()
 app = Flask(__name__)
@@ -24,12 +27,12 @@ def index():
 def get_articles_by_quarter():
     company_name = request.args.get('company_name', default='', type=str)
     today = datetime.now()
-    interval_start = today - relativedelta(years=1, days=1)
+    interval_start = today - relativedelta(years=10, days=1)
     interval_end = interval_start + relativedelta(months=3)
     quarter_to_articles = []
 
     while interval_end < today:
-        google_news = GNews(language='en', country='US', start_date=interval_start, end_date=interval_end, max_results=10)
+        google_news = GNews(language='en', country='US', start_date=interval_start, end_date=interval_end, max_results=5)
         interval_articles = google_news.get_news(f'"{company_name}" news')
         quarter_to_articles.append(interval_articles)
         interval_start += relativedelta(months=3)
@@ -49,26 +52,34 @@ def get_articles_by_quarter():
 @app.route('/sentiment_analysis', methods=['POST'])
 def sentiment_analysis():
     quarter_to_articles = request.json.get('quarter_to_articles')
+    pipe = pipeline("text-classification", model="ProsusAI/finbert", return_all_scores = True)
+
+    sentiments = pd.DataFrame(columns = ["Date", "Positive", "Negative", "Neutral"])
+
     # Extract text from each quarter
     for articles_json in quarter_to_articles:
         for article_json in articles_json:
-            # print("HELLO", file=sys.stderr)
-            # print(f"URL: {article_json['url']}", file=sys.stderr)
-            # feed = feedparser.parse(article_json['url'])
-            # print(f"Feed: {feed}", file=sys.stderr)
-            # for entry in feed.entries:
-            #     url = entry.link
             article = Article(article_json['url'])
             article.config.request_timeout = 10
-            article.download()
-            article.parse()
-            
-    return quarter_to_articles
+            try:
+                article.download()
+                article.parse()
+                output = pipe(article.text[:512])
+                sentiments.loc[len(sentiments)] = [article_json["published date"]] + output_to_sentiment(output)
+            except newspaper.article.ArticleException:
+                continue
+        
+    return jsonify(sentiments.to_dict())
+
+def output_to_sentiment (output):
+    return [score['score'] for score in output[0] if score['label'] == 'positive'] + [score['score'] for score in output[0] if score['label'] == 'negative'] + [score['score'] for score in output[0] if score['label'] == 'neutral']
 
 @app.route('/prediction', methods=['POST'])
 def prediction():
     company_name = request.args.get('company_name', default='', type=str)
-    return jsonify(forecast(company_name, 2).to_dict(orient='records'))
+    sentiments = pd.DataFrame.from_dict(request.json.get('sentiments'), orient='columns')
+    
+    return jsonify(forecast(company_name, 2, sentiments = sentiments).to_dict(orient='records'))
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -83,6 +94,7 @@ def generate_summary():
     for article in articles:
         titles.append(article['title'])
     
+<<<<<<< HEAD
     macro_text = """The Conference Board forecasts that US economic growth will buckle under mounting headwinds early next year, leading to a very short and shallow recession. This outlook is associated with numerous factors, including, elevated inflation, high interest rates, dissipating pandemic savings, rising consumer debt, lower government spending, and the resumption of mandatory student loan repayments. We forecast that real GDP will grow by 2.2 percent in 2023, and then fall to 0.8 percent in 2024.
 
                         US consumer spending has held up remarkably well this year despite elevated inflation and higher interest rates. However, this trend cannot hold, in our view. Real disposable personal income growth is flat, pandemic savings are dwindling, and household debt is rising. Additionally, new student loan repayment requirements will begin to impact many consumers starting in October. Thus, we forecast that overall consumer spending growth will slow towards yearend and then contract in Q1 2024 and Q2 2024. As inflation and interest rates abate later in 2024, we expect consumption to begin to expand once more.
@@ -117,6 +129,9 @@ def generate_summary():
                 + industry_text + "/n/n" + macro_text         
     )
 
+=======
+    
+>>>>>>> 0a880696bc2059d9d6ebebb5b16e37229364f4e0
 # openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # @app.route('/filter_articles', methods=['POST'])

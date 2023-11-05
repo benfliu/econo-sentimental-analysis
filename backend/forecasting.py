@@ -8,6 +8,17 @@ from fredapi import Fred
 
 from statsmodels.tsa.api import VAR
 from sklearn.preprocessing import StandardScaler
+import sys
+
+name_to_ticker = {
+    "Apple": "AAPL",
+    "Microsoft": "MSFT",
+    "Google": "GOOG",
+    "Amazon": "AMZN",
+    "Meta": "META",
+    "Tesla":"TSLA",
+    "Goldman Sachs": "GS"
+}
 
 def get_company_data(ticker, start, end):
     
@@ -45,24 +56,32 @@ def get_macroeconomic_data (start, end):
     
     return macro
 
-def get_data (ticker, start, end):
+def get_data (ticker, start, end, with_macro = True, sentiments = None):
     
-    company = get_company_data(ticker, start, end)
-    macro = get_macroeconomic_data(start, end)
-    merged = pd.merge(company, macro, left_index = True, right_index = True)
-    return merged.dropna(axis = 0).sort_index()
+    data = get_company_data(ticker, start, end)
 
-def forecast (ticker, steps, with_macro = True):
+    if with_macro:
+        macro = get_macroeconomic_data(start, end)
+        data = pd.merge(data, macro, left_index = True, right_index = True)
+
+    if sentiments is not None:
+        sentiments.index = pd.to_datetime(sentiments["Date"], format = "%a, %d %b %Y %H:%M:%S %Z")
+        sentiments.drop(columns = "Date", inplace = True)
+        sentiments = sentiments.resample('Q').mean()
+        sentiments.set_index(pd.PeriodIndex(sentiments.index, freq='Q'), inplace = True)
+        data = pd.merge(data, sentiments, left_index = True, right_index = True)
+
+    return data.dropna(axis = 0).sort_index()
+
+def forecast (name, steps, with_macro = True, sentiments = None):
         
     end = datetime.now()
     start = (end - relativedelta(years = 10))
-    
-    if with_macro:
-        data = get_data(ticker, start, end)
-        # Add sentiment data
-    else:
-        data = get_company_data(ticker, start, end).dropna(axis = 0).sort_index()
-    
+
+    ticker = name_to_ticker[name]
+
+    data = get_data(ticker, start, end, with_macro, sentiments)
+
     scaler = StandardScaler()
     data_arr = scaler.fit_transform(data)
 

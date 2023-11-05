@@ -66,3 +66,6 @@ webencodings==0.5.1
 yfinance==0.1.96
 yarl==1.9.2
 zope.interface==6.1
+transformers==4.35.0
+torch==2.1.0
+Flask-Cors==4.0.0
