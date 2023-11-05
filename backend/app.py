@@ -11,7 +11,7 @@ import newspaper
 from newspaper import Article
 import feedparser
 import tweepy
-from forecasting import get_company_data, get_data, get_macroeconomic_data, forecast
+from forecasting import get_company_data, get_data, get_macroeconomic_data, forecast, evaluate
 from transformers import pipeline
 import pandas as pd
 
@@ -80,6 +80,13 @@ def prediction():
     sentiments = pd.DataFrame.from_dict(request.json.get('sentiments'), orient='columns')
     
     return jsonify(forecast(company_name, 2, sentiments = sentiments).to_dict(orient='records'))
+
+@app.route('/evaluation', methods=['POST'])
+def evaluation():
+    company_name = request.args.get('company_name', default='', type=str)
+    sentiments = pd.DataFrame.from_dict(request.json.get('sentiments'), orient='columns')
+    
+    return jsonify(evaluate(company_name, 5, sentiments = sentiments).to_dict(orient='records'))
 
 @app.route('/generate_summary', methods=['POST'])
 def generate_summary():

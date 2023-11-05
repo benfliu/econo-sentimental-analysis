@@ -1,6 +1,7 @@
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
+import numpy as np
 
 import yfinance as yf
 from finqual import finqual as fq
@@ -94,3 +95,30 @@ def forecast (name, steps, with_macro = True, sentiments = None):
 
     out = scaler.inverse_transform(results.forecast(data_arr, steps))
     return pd.DataFrame(out, columns = data.columns)
+
+def evaluate (name, steps, with_macro = True, sentiments = None):
+        
+    end = datetime.now()
+    start = (end - relativedelta(years = 10))
+
+    ticker = name_to_ticker[name]
+
+    data = get_data(ticker, start, end, with_macro, sentiments)
+
+    train_data = data.iloc[0:len(data)-steps]
+    test_data = data.iloc[len(data)-steps:]
+
+    scaler = StandardScaler()
+    data_arr = scaler.fit_transform(train_data)
+
+    try:
+        model = VAR(data_arr)
+        results = model.fit()
+        results.summary()
+    except Exception as e:
+        print("There was an issue with the VAR model:", e)
+
+    out = scaler.inverse_transform(results.forecast(data_arr, steps))
+
+    test_arr = np.asarray(test_data, dtype = np.float64)
+    return pd.DataFrame((out - test_arr) / test_arr, columns = data.columns)
