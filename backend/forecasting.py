@@ -94,7 +94,7 @@ def forecast (name, steps, with_macro = True, sentiments = None):
         print("There was an issue with the VAR model:", e)
 
     out = scaler.inverse_transform(results.forecast(data_arr, steps))
-    return pd.concat((data, pd.DataFrame(out, columns = data.columns)), axis = 0)
+    return [data, pd.DataFrame(out, columns = data.columns)]
 
 def evaluate (name, steps, with_macro = True, sentiments = None):
         
